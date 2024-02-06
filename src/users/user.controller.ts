@@ -1,36 +1,63 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { UserRepository } from './user.repository';
 import { RegisterUser } from './dto/RegisterUser.dto';
-import { UserEntity } from './user.entity';
-import { v4 as uuid } from 'uuid';
+import { UpdateUser } from './dto/UpdateUser.dto';
+import { UserService } from './user.service';
 @Controller('/user')
 export class UserController {
   // A injeção de dependências ocorre aqui. O UserRepository é injetado no controller
   // através do construtor. Isso desacopla o UserController da criação direta do UserRepository,
   // permitindo maior flexibilidade e facilitando testes unitários.
-  constructor(private userRepository: UserRepository) {}
+  constructor(
+    private userRepository: UserRepository,
+    private userService: UserService,
+  ) {}
 
   @Post()
   async registerUser(@Body() userData: RegisterUser) {
-    // O decorador @Body() é usado para extrair dados do corpo da requisição HTTP.
-    // Isso permite que o método manipule os dados enviados pelo usuário em uma requisição POST.
-    const userEntity = new UserEntity();
-    userEntity.email = userData.email;
-    userEntity.password = userData.password;
-    userEntity.name = userData.name;
-    userEntity.id = uuid();
-    this.userRepository.save(userEntity); // Aqui, o método save do UserRepository injetado é chamado.
-    // Isso mostra como a injeção de dependências permite o uso
-    // de métodos de uma classe injetada sem a necessidade de
-    // criar uma instância diretamente no controller.
-    return { id: userEntity.id, message: 'Usuario cadastrado com sucesso!' };
+    const userEntity = await this.userService.registerUser(userData);
+    return {
+      id: userEntity.id,
+      name: userEntity.name,
+      message: 'Usuário cadastrado com sucesso!',
+    };
   }
 
   @Get()
   async returnUser() {
-    // Aqui, o método listUsers do UserRepository injetado é chamado para retornar todos os usuários.
-    // Mais uma vez, isso demonstra a vantagem da injeção de dependências, pois o UserController
-    // não precisa saber como os usuários são armazenados ou recuperados, apenas usa o método fornecido.
-    return this.userRepository.listUsers();
+    const userSaved = await this.userService.userList();
+    return userSaved;
+  }
+
+  @Put('/:id')
+  async updateUser(@Param('id') id: string, @Body() updateData: UpdateUser) {
+    const updatedUser = await this.userService.updateUser(id, updateData);
+
+    return {
+      user: updatedUser,
+      message: 'Usuário Atualizado com sucesso!',
+    };
+  }
+
+  @Delete('/:id')
+  async deleteUser(@Param('id') id: string) {
+    const removeUser = await this.userRepository.deleteUser(id);
+
+    return {
+      user: removeUser,
+      message: 'usuario removido com sucesso',
+    };
   }
 }
+//                                    1º
+// O controlador é o ponto de entrada para as requisições relacionadas aos usuários.
+//Ele recebe a requisição, extrai os dados necessários (como parâmetros de rota, parâmetros de consulta, corpo da
+//requisição, etc.),  e delega a lógica de negócios aos serviços apropriados.
